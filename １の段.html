@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>1の段かけ算ゲーム</title>
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: 'Arial', sans-serif;
+      background-color: #222;
+      color: white;
+      user-select: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+    #problemAnswerWrapper {
+      display: flex;
+      justify-content: flex-start;
+      align-items: flex-end;
+      gap: 4vw;
+      width: 100vw;
+      padding: 0 5vw;
+      box-sizing: border-box;
+    }
+    #problemWrapper, #answerWrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-width: 20vw;
+    }
+    #reading, #answerReading {
+      font-size: 5vw;
+      color: #ffcc00;
+      font-weight: bold;
+      line-height: 1;
+      user-select: none;
+    }
+    #problem, #answer {
+      font-size: 18vw;
+      font-weight: bold;
+      line-height: 1;
+      user-select: none;
+      color: white;
+    }
+    .small-text {
+      font-size: 5vw !important;
+    }
+    button {
+      padding: 10px 30px;
+      font-size: 1.4rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      color: white;
+      margin: 5px;
+      transition: background-color 0.3s ease;
+    }
+    #startBtn {
+      background-color: #28a745;
+    }
+    #startBtn:hover:not(:disabled) {
+      background-color: #218838;
+    }
+    #startBtn:disabled {
+      background-color: #555;
+      cursor: not-allowed;
+    }
+    #stopBtn {
+      background-color: #dc3545;
+    }
+    #stopBtn:hover:not(:disabled) {
+      background-color: #b02a37;
+    }
+    #stopBtn:disabled {
+      background-color: #555;
+      cursor: not-allowed;
+    }
+    #replayBtn {
+      background-color: #007bff;
+    }
+    #replayBtn:hover {
+      background-color: #0056b3;
+    }
+    #endBtn {
+      background-color: #dc3545;
+    }
+    #endBtn:hover {
+      background-color: #b02a37;
+    }
+    #continueBtn {
+      background-color: #17a2b8;
+    }
+    #continueBtn:hover {
+      background-color: #117a8b;
+    }
+    #restartBtn {
+      background-color: #ffc107;
+      color: black;
+    }
+    #restartBtn:hover {
+      background-color: #d39e00;
+      color: black;
+    }
+  </style>
+</head>
+<body>
+  <div id="problemAnswerWrapper">
+    <div id="problemWrapper">
+      <div id="reading">じゅんびはいい？</div>
+      <div id="problem"></div>
+    </div>
+    <div id="answerWrapper">
+      <div id="answerReading"></div>
+      <div id="answer"></div>
+    </div>
+  </div>
+  <div id="mainButtons" style="margin-top:20px;">
+    <button id="startBtn">スタート</button>
+    <button id="stopBtn" disabled>ストップ</button>
+  </div>
+  <div id="pauseButtons" style="margin-top:20px; display:none;">
+    <button id="continueBtn">とちゅうから</button>
+    <button id="restartBtn">さいしょから</button>
+  </div>
+  <div id="endButtons" style="margin-top:20px; display:none;">
+    <button id="replayBtn">もういちど</button>
+    <button id="endBtn">おわり</button>
+  </div>
+
+  <script>
+    const readingEl = document.getElementById('reading');
+    const problemEl = document.getElementById('problem');
+    const answerReadingEl = document.getElementById('answerReading');
+    const answerEl = document.getElementById('answer');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const mainButtons = document.getElementById('mainButtons');
+    const pauseButtons = document.getElementById('pauseButtons');
+    const continueBtn = document.getElementById('continueBtn');
+    const restartBtn = document.getElementById('restartBtn');
+    const endButtons = document.getElementById('endButtons');
+    const replayBtn = document.getElementById('replayBtn');
+    const endBtn = document.getElementById('endBtn');
+
+    let intervalId;
+    let countdown = 3;
+    let isRunning = false;
+    let currentIndex = 0;
+    const problemDigits = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+    const digitReading = {
+      1: 'いちが',
+      2: 'にが',
+      3: 'さんが',
+      4: 'しが',
+      5: 'ごが',
+      6: 'ろくが',
+      7: 'しちが',
+      8: 'はちが',
+      9: 'くが'
+    };
+
+    const answerReading = {
+      1: 'いち',
+      2: 'に',
+      3: 'さん',
+      4: 'し',
+      5: 'ご',
+      6: 'ろく',
+      7: 'しち',
+      8: 'はち',
+      9: 'く'
+    };
+
+    function playBeep(normal = true) {
+      const context = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = context.createOscillator();
+      const gainNode = context.createGain();
+
+      oscillator.type = 'square';
+      oscillator.frequency.setValueAtTime(normal ? 1000 : 1500, context.currentTime);
+      gainNode.gain.setValueAtTime(normal ? 0.1 : 0.2, context.currentTime);
+
+      oscillator.connect(gainNode);
+      gainNode.connect(context.destination);
+
+      oscillator.start();
+      oscillator.stop(context.currentTime + 0.15);
+      oscillator.onended = () => context.close();
+    }
+
+    function playCuteBeep() {
+      const context = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = context.createOscillator();
+      const gainNode = context.createGain();
+
+      oscillator.type = 'triangle';
+      oscillator.frequency.setValueAtTime(1200, context.currentTime);
+      gainNode.gain.setValueAtTime(0.15, context.currentTime);
+
+      oscillator.connect(gainNode);
+      gainNode.connect(context.destination);
+
+      oscillator.start();
+      oscillator.stop(context.currentTime + 0.1);
+      oscillator.onended = () => context.close();
+    }
+
+    function showProblem() {
+      clearInterval(intervalId);
+      readingEl.textContent = '';
+      answerReadingEl.textContent = '';
+      answerEl.textContent = '';
+
+      if (currentIndex >= problemDigits.length) {
+        endGame();
+        return;
+      }
+
+      const currentDigit = problemDigits[currentIndex];
+      readingEl.textContent = `いん${digitReading[currentDigit]}`;
+      problemEl.textContent = `1 × ${currentDigit}`;
+      problemEl.classList.remove('small-text');
+
+      countdown = 3;
+      playBeep(true);
+
+      intervalId = setInterval(() => {
+        countdown--;
+        if (countdown > 1) {
+          playBeep(true);
+        } else if (countdown === 1) {
+          clearInterval(intervalId);
+          playAnswerPhase(currentDigit);
+        }
+      }, 1000);
+    }
+
+    function playAnswerPhase(currentDigit) {
+      const ans = 1 * currentDigit;
+      answerReadingEl.textContent = answerReading[ans] || '';
+      answerEl.textContent = `＝${ans}`;
+
+      let beepCount = 0;
+      playCuteBeep();
+
+      const beepInterval = setInterval(() => {
+        beepCount++;
+        if (beepCount < 2) {
+          playCuteBeep();
+        } else {
+          clearInterval(beepInterval);
+          currentIndex++;
+          nextProblem();
+        }
+      }, 1000);
+    }
+
+    function nextProblem() {
+      if (!isRunning) return;
+      showProblem();
+    }
+
+    function stopGame() {
+      isRunning = false;
+      clearInterval(intervalId);
+      readingEl.textContent = '';
+      problemEl.textContent = 'ていししました';
+      problemEl.classList.add('small-text');
+      answerReadingEl.textContent = '';
+      answerEl.textContent = '';
+
+      // ボタン切り替え
+      mainButtons.style.display = 'none';
+      pauseButtons.style.display = 'block';
+    }
+
+    function endGame() {
+      isRunning = false;
+      clearInterval(intervalId);
+      readingEl.textContent = '';
+      problemEl.textContent = '';
+      answerReadingEl.textContent = '';
+      answerEl.textContent = '';
+      // スタート・ストップ非表示、もういちど・おわり表示
+      mainButtons.style.display = 'none';
+      pauseButtons.style.display = 'none';
+      endButtons.style.display = 'block';
+    }
+
+    startBtn.addEventListener('click', () => {
+      if (isRunning) return;
+      isRunning = true;
+      currentIndex = 0;
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+      showProblem();
+    });
+
+    stopBtn.addEventListener('click', () => {
+      if (!isRunning) return;
+      stopGame();
+    });
+
+    continueBtn.addEventListener('click', () => {
+      // 続きから再開
+      isRunning = true;
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+      mainButtons.style.display = 'block';
+      pauseButtons.style.display = 'none';
+      showProblem();
+    });
+
+    restartBtn.addEventListener('click', () => {
+      // 最初から
+      isRunning = true;
+      currentIndex = 0;
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+      mainButtons.style.display = 'block';
+      pauseButtons.style.display = 'none';
+      showProblem();
+    });
+
+    replayBtn.addEventListener('click', () => {
+      currentIndex = 0;
+      readingEl.textContent = 'じゅんびはいい？';
+      problemEl.textContent = '';
+      problemEl.classList.remove('small-text');
+      answerReadingEl.textContent = '';
+      answerEl.textContent = '';
+      isRunning = true;
+      endButtons.style.display = 'none';
+      mainButtons.style.display = 'block';
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+      showProblem();
+    });
+
+    endBtn.addEventListener('click', () => {
+      window.open('', '_self').close();
+    });
+  </script>
+</body>
+</html>
+
